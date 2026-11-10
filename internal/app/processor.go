@@ -66,7 +66,7 @@ func Build(sched *pool.Scheduler, src *image.RGBA, bufs Buffers, stripH int, k f
 
 		rtJobs[i] = sched.NewJob(func() {
 			transform.Roundtrip(bufs.Y, bufs.Cb, bufs.Cr, bufs.RT, y0, y1)
-		}, 1)
+		}, 1) // Очевидно обратный перевод возможен после прямого, поэтому deps 1
 	}
 
 	// 2. Связываем sobel с соседними полосами gray (с проверкой границ)
@@ -83,25 +83,25 @@ func Build(sched *pool.Scheduler, src *image.RGBA, bufs Buffers, stripH int, k f
 
 	// 3. Сохранения
 	saveGray := sched.NewJob(func() {
-		imageio.SavePNG(filepath.Join(outDir, "gray.png"), grayToRGBA(bufs.Gray))
+		imageio.SavePNG(filepath.Join(outDir, "gray.png"), bufs.Gray) // без grayToRGBA
 	}, int32(S))
 	saveY := sched.NewJob(func() {
-		imageio.SavePNG(filepath.Join(outDir, "ycbcr_y.png"), grayToRGBA(bufs.Y))
+		imageio.SavePNG(filepath.Join(outDir, "ycbcr_y.png"), bufs.Y)
 	}, int32(S))
 	saveCb := sched.NewJob(func() {
-		imageio.SavePNG(filepath.Join(outDir, "ycbcr_cb.png"), grayToRGBA(bufs.Cb))
+		imageio.SavePNG(filepath.Join(outDir, "ycbcr_cb.png"), bufs.Cb)
 	}, int32(S))
 	saveCr := sched.NewJob(func() {
-		imageio.SavePNG(filepath.Join(outDir, "ycbcr_cr.png"), grayToRGBA(bufs.Cr))
+		imageio.SavePNG(filepath.Join(outDir, "ycbcr_cr.png"), bufs.Cr)
 	}, int32(S))
 	saveSobel := sched.NewJob(func() {
-		imageio.SavePNG(filepath.Join(outDir, "sobel.png"), grayToRGBA(bufs.Sobel))
+		imageio.SavePNG(filepath.Join(outDir, "sobel.png"), bufs.Sobel)
 	}, int32(S))
 	saveRT := sched.NewJob(func() {
-		imageio.SavePNG(filepath.Join(outDir, "ycbcr_roundtrip.png"), bufs.RT)
+		imageio.SavePNG(filepath.Join(outDir, "ycbcr_roundtrip.png"), bufs.RT) // RT — уже *image.RGBA
 	}, int32(S))
 	saveDistort := sched.NewJob(func() {
-		imageio.SavePNG(filepath.Join(outDir, "distort.png"), bufs.Distort)
+		imageio.SavePNG(filepath.Join(outDir, "distort.png"), bufs.Distort) // Distort — уже *image.RGBA
 	}, int32(S))
 
 	for i := 0; i < S; i++ {
@@ -115,16 +115,4 @@ func Build(sched *pool.Scheduler, src *image.RGBA, bufs Buffers, stripH int, k f
 	}
 
 	sched.Start()
-}
-
-func grayToRGBA(g *image.Gray) *image.RGBA {
-	rgba := image.NewRGBA(g.Bounds())
-	for i := 0; i < len(g.Pix); i++ {
-		v := g.Pix[i]
-		rgba.Pix[i*4+0] = v
-		rgba.Pix[i*4+1] = v
-		rgba.Pix[i*4+2] = v
-		rgba.Pix[i*4+3] = 255
-	}
-	return rgba
 }
