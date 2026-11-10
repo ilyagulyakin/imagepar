@@ -9,11 +9,10 @@ type Job struct {
 	run        Task
 	pending    int32
 	successors []*Job
-	owner      *Scheduler
 }
 
 type Scheduler struct {
-	sub   submitter
+	sub   submitter //Куда отправлять готовые задачи (пул или выполнить сразу syncSubmitter)
 	done  sync.WaitGroup
 	roots []*Job
 }
@@ -35,7 +34,7 @@ func NewSyncScheduler() *Scheduler {
 }
 
 func (s *Scheduler) NewJob(run Task, deps int32) *Job {
-	j := &Job{run: run, pending: deps, owner: s}
+	j := &Job{run: run, pending: deps}
 	s.done.Add(1)
 	if deps == 0 {
 		s.roots = append(s.roots, j)
@@ -45,7 +44,7 @@ func (s *Scheduler) NewJob(run Task, deps int32) *Job {
 
 func (s *Scheduler) Start() {
 	for _, j := range s.roots {
-		s.sub.Submit(j.wrap())
+		s.sub.Submit(s.makeTask(j))
 	}
 	s.roots = nil
 }
@@ -58,13 +57,13 @@ func (s *Scheduler) Wait() {
 	s.done.Wait()
 }
 
-func (j *Job) wrap() Task {
+func (s *Scheduler) makeTask(j *Job) Task {
 	return func() {
-		defer j.owner.done.Done()
+		defer s.done.Done()
 		j.run()
 		for _, succ := range j.successors {
 			if atomic.AddInt32(&succ.pending, -1) == 0 {
-				j.owner.sub.Submit(succ.wrap())
+				s.sub.Submit(s.makeTask(succ))
 			}
 		}
 	}
