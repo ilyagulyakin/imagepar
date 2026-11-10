@@ -9,6 +9,13 @@ type WorkerPool struct {
 	workers sync.WaitGroup
 }
 
+func (p *WorkerPool) worker() {
+	defer p.workers.Done()
+	for t := range p.tasks {
+		t()
+	}
+}
+
 func New(n int) *WorkerPool {
 	p := &WorkerPool{tasks: make(chan Task, n*2)}
 	p.workers.Add(n)
@@ -16,13 +23,6 @@ func New(n int) *WorkerPool {
 		go p.worker()
 	}
 	return p
-}
-
-func (p *WorkerPool) worker() {
-	defer p.workers.Done()
-	for t := range p.tasks {
-		t()
-	}
 }
 
 func (p *WorkerPool) Submit(t Task) {
