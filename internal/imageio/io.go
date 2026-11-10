@@ -48,12 +48,12 @@ func SavePNG(path string, img image.Image) error {
 	}()
 
 	w := bufio.NewWriter(f)
-	if err := png.Encode(w, img); err != nil {
+	enc := png.Encoder{CompressionLevel: png.BestSpeed}
+	if err := enc.Encode(w, img); err != nil {
 		return fmt.Errorf("imageio.SavePNG: encode %q: %w", path, err)
 	}
 	if err := w.Flush(); err != nil {
 		return fmt.Errorf("imageio.SavePNG: flush %q: %w", path, err)
 	}
-
 	return nil
 }
